@@ -57,6 +57,7 @@ services:
       RCON_PASSWORD: ${RCON_PASSWORD}
       AUTH_USER: ${AUTH_USER:-admin}
       AUTH_PASS: ${AUTH_PASS:-change-me}
+      KOFI_WEBHOOK_SECRET: ${KOFI_WEBHOOK_SECRET:-}
     volumes:
       - /srv/e10/prod/data:/prod-data
       - /srv/e10/test/data:/test-data

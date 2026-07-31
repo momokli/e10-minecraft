@@ -16,6 +16,8 @@ RCON_HOST = os.environ.get("RCON_HOST_PROD", "mc-prod")
 RCON_PORT = int(os.environ.get("RCON_PORT", 25575))
 RCON_PASSWORD = os.environ["RCON_PASSWORD"]
 ALLOWED_DIRS = {"config", "mods", "defaultconfigs", "world", "server.properties"}
+KOFI_WEBHOOK_SECRET = os.environ.get("KOFI_WEBHOOK_SECRET", "")
+TOTAL_FILE = "/data/donations_total.json"
 
 
 def check_auth(username, password):
@@ -60,6 +62,9 @@ def require_auth():
         or request.path.startswith("/api/prod/players")
         or request.path.startswith("/api/prod/motd")
         or request.path.startswith("/api/prod/whitelist/request")
+        or request.path.startswith("/spenden")
+        or request.path.startswith("/api/donations")
+        or request.path.startswith("/api/kofi-webhook")
     ):
         return None
     auth = request.authorization
@@ -70,6 +75,63 @@ def require_auth():
 @app.route("/")
 def landing():
     return render_template("landing.html")
+
+
+# --- Donations ---
+
+
+def load_donations():
+    try:
+        with open(TOTAL_FILE) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"total_cents": 0, "count": 0, "goal_cents": 1500}
+
+
+def save_donations(data):
+    os.makedirs(os.path.dirname(TOTAL_FILE), exist_ok=True)
+    with open(TOTAL_FILE, "w") as f:
+        json.dump(data, f)
+
+
+@app.get("/api/donations")
+def api_donations():
+    data = load_donations()
+    total = data["total_cents"] / 100
+    goal = data["goal_cents"] / 100
+    return jsonify(
+        {
+            "total_eur": round(total, 2),
+            "count": data["count"],
+            "goal_eur": round(goal, 2),
+            "progress_pct": min(
+                100, round((data["total_cents"] / data["goal_cents"]) * 100)
+            ),
+        }
+    )
+
+
+@app.post("/api/kofi-webhook")
+def api_kofi_webhook():
+    # Ko-fi sends: { "data": "<urlencoded json string>" }
+    if not KOFI_WEBHOOK_SECRET:
+        return jsonify({"error": "webhook not configured"}), 501
+    payload = json.loads(request.form.get("data", "{}"))
+    if payload.get("verification_token") != KOFI_WEBHOOK_SECRET:
+        return jsonify({"error": "forbidden"}), 403
+    amount = float(payload.get("amount", 0))
+    if amount <= 0:
+        return jsonify({"error": "bad amount"}), 400
+    data = load_donations()
+    data["total_cents"] += int(amount * 100)
+    data["count"] += 1
+    save_donations(data)
+    return jsonify({"status": "ok"})
+
+
+@app.route("/spenden")
+def spenden():
+    return render_template("spenden.html")
 
 
 @app.route("/admin")

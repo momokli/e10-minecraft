@@ -47,6 +47,7 @@
           CF_API_KEY={{ lookup('env', 'CF_API_KEY') | replace('$', '$$') }}
           RCON_PASSWORD={{ lookup('env', 'RCON_PASSWORD') }}
           GRAFANA_PASSWORD={{ lookup('env', 'GRAFANA_PASSWORD') }}
+          KOFI_WEBHOOK_SECRET={{ lookup('env', 'KOFI_WEBHOOK_SECRET') }}
         dest: "/srv/e10/{{ item }}/.env"
         mode: "0600"
       loop:
