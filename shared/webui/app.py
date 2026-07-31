@@ -1,3 +1,4 @@
+import glob
 import json
 import os
 import re
@@ -507,27 +508,63 @@ def api_logs(instance):
     import docker
 
     tail = request.args.get("tail", 50, type=int)
+    source = request.args.get("source", "docker")
     ansi_re = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]|\x1b\]0;.*?\x07|\r")
+
+    if source == "file":
+        # Read from MC server's latest.log
+        try:
+            with open("/prod-data/logs/latest.log") as f:
+                all_lines = f.readlines()
+            lines = [l.strip() for l in all_lines[-tail:] if l.strip()]
+            return jsonify(lines)
+        except Exception as e:
+            return jsonify([f"Error: {e}"]), 500
+
+    # Docker logs (default)
     try:
         client = docker.from_env()
         container = client.containers.get("mc-prod")
-        # Fetch more lines to compensate for RCON filter
         logs = container.logs(tail=max(tail * 5, 500)).decode("utf-8", errors="replace")
         lines = []
         for l in logs.split("\n"):
             l = ansi_re.sub("", l).strip()
             if not l:
                 continue
-            # Filter RCON connect/disconnect noise
             if "[minecraft/RconClient]" in l or "[minecraft/GenericThread]" in l:
                 continue
-            # Strip progress bar prefix
             if l.startswith(">"):
                 l = l.split("\r")[-1].lstrip(">. ")
             lines.append(l)
         return jsonify(lines[-tail:])
     except Exception as e:
         return jsonify([f"Error: {e}"]), 500
+
+
+@app.route("/api/<instance>/crash-reports")
+def api_crash_reports(instance):
+    """List crash report files."""
+    import glob
+
+    try:
+        files = sorted(glob.glob("/prod-data/crash-reports/*.txt"), reverse=True)
+        return jsonify([{"name": os.path.basename(f), "path": f} for f in files[:20]])
+    except Exception:
+        return jsonify([])
+
+
+@app.route("/api/<instance>/crash-reports/read")
+def api_crash_report_read(instance):
+    """Read a specific crash report."""
+    name = request.args.get("name", "")
+    try:
+        path = os.path.join("/prod-data/crash-reports", os.path.basename(name))
+        if not os.path.exists(path):
+            return jsonify({"error": "Not found"}), 404
+        with open(path) as f:
+            return jsonify({"content": f.read()[:50000]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/<instance>/backup", methods=["POST"])

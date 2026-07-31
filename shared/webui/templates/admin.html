@@ -313,7 +313,8 @@
         <script>
             var inst = "prod",
                 page = "status",
-                fpath = "";
+                fpath = "",
+                logSource = "docker";
 
             function nav(p) {
                 page = p;
@@ -601,9 +602,38 @@
                     c.innerHTML = html;
                 } else if (page === "logs") {
                     t.innerHTML =
-                        '<span class="path">Server Log</span><button onclick="loadLogs()">🔄</button>';
+                        '<span class="path">Server Log</span>' +
+                        "<button onclick=\"logSource='docker';loadLogs()\">🐳 Docker</button>" +
+                        "<button onclick=\"logSource='file';loadLogs()\">📄 latest.log</button>" +
+                        "<button onclick=\"page='crash';render()\">💥 Crashes</button>" +
+                        '<button onclick="loadLogs()">🔄</button>';
                     c.innerHTML = '<pre class="log-view" id="log-view">Loading...</pre>';
                     loadLogs();
+                } else if (page === "crash") {
+                    t.innerHTML = '<span class="path">Crash Reports</span>';
+                    var cr = [];
+                    try {
+                        cr = await (
+                            await fetch("/api/" + inst + "/crash-reports")
+                        ).json();
+                    } catch (e) {}
+                    c.innerHTML =
+                        '<div class="file-list">' +
+                        (cr.length
+                            ? cr
+                                  .map(function (r) {
+                                      return (
+                                          '<div class="item" onclick="viewCrash(\'' +
+                                          r.name +
+                                          "')\">💥 " +
+                                          r.name +
+                                          "</div>"
+                                      );
+                                  })
+                                  .join("")
+                            : '<div class="item" style="color:var(--dim)">No crash reports</div>') +
+                        "</div>";
+                    window._crashName = null;
                 } else if (page === "backups") {
                     t.innerHTML =
                         '<span class="path">Backups</span><button class="accent" onclick="doBackup()">🔄 Create Backup</button>';
@@ -801,7 +831,9 @@
             }
             async function loadLogs() {
                 try {
-                    var r = await fetch("/api/" + inst + "/logs?tail=40");
+                    var r = await fetch(
+                        "/api/" + inst + "/logs?tail=40&source=" + logSource,
+                    );
                     var lines = await r.json();
                     var lv = document.getElementById("log-view");
                     if (lv) {
@@ -809,6 +841,24 @@
                         lv.scrollTop = lv.scrollHeight;
                     }
                 } catch (e) {}
+            }
+            async function viewCrash(name) {
+                var r = await fetch(
+                    "/api/" +
+                        inst +
+                        "/crash-reports/read?name=" +
+                        encodeURIComponent(name),
+                );
+                var d = await r.json();
+                var c = document.getElementById("content");
+                c.innerHTML =
+                    '<pre class="log-view" style="height:calc(100vh-120px)">' +
+                    (d.content || d.error || "") +
+                    "</pre>";
+                document.getElementById("toolbar").innerHTML =
+                    '<span class="path">💥 ' +
+                    name +
+                    '</span><button onclick="page=`crash`;render()">Back</button>';
             }
             async function doBackup() {
                 var r = await fetch("/api/" + inst + "/backup", { method: "POST" });

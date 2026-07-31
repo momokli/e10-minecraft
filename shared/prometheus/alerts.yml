@@ -1,0 +1,29 @@
+groups:
+  - name: minecraft
+    rules:
+      - alert: MinecraftDown
+        expr: minecraft_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "E10 Minecraft server is DOWN"
+          description: "minecraft_up is 0 for over 1 minute"
+
+      - alert: LowTPS
+        expr: minecraft_tps < 15
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "E10 TPS dropped below 15"
+          description: "Current TPS: {{ $value }}"
+
+      - alert: HighMSPT
+        expr: minecraft_mspt_seconds * 1000 > 50
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "E10 MSPT above 50ms"
+          description: "Current MSPT: {{ $value }}ms"
