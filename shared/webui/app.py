@@ -105,7 +105,7 @@ def metrics():
         resp = rcon("list", host=host)
         online, maxp = 0, 0
         if resp and "players online" in resp:
-            m = _re.search(r"There are (\d+) of a max (\d+) player", resp)
+            m = _re.search(r"There are (\d+) of a max (?:of )?(\d+) player", resp)
             if m:
                 online = int(m.group(1))
                 maxp = int(m.group(2))
