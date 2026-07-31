@@ -2,7 +2,6 @@ services:
   mc-prod:
     image: itzg/minecraft-server:java21
     container_name: mc-prod
-    pull_policy: always
     tty: true
     stdin_open: true
     ports:

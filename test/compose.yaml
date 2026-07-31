@@ -2,7 +2,6 @@ services:
   mc-test:
     image: itzg/minecraft-server:java21
     container_name: mc-test
-    pull_policy: always
     tty: true
     stdin_open: true
     ports:
