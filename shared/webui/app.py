@@ -241,45 +241,36 @@ cage_released = False
 
 @app.route("/api/<instance>/pregen")
 def api_pregen(instance):
-    global cage_released
+    # Check actual worldborder to detect if cage was released (persistent across restarts)
+    wb_resp = rcon("worldborder get")
+    cage_open = "59999968" in wb_resp
     players = parse_list(rcon("list"))
     prog = rcon("chunky progress").strip()
     idle = "No tasks" in prog or "RCON error" in prog
 
-    # Start if nothing running (always, even with players)
     if idle:
         rcon("chunky world world")
         rcon("chunky radius 2000")
         rcon("chunky start")
         prog = "Starting..."
-    # Pause only if cage released AND players online
-    elif cage_released and len(players) > 0:
+    elif cage_open and len(players) > 0:
         rcon("chunky pause")
-        prog = "Paused (cage released, players online)"
-    # Resume if paused for other reasons (players left, or cage not released)
+        prog = "Paused (cage open, players online)"
     else:
         rcon("chunky continue")
-        # Refresh progress after continue
         prog = rcon("chunky progress").strip()
 
     return jsonify(
-        {
-            "running": not idle,
-            "progress": prog,
-            "radius": 2000,
-            "cage_released": cage_released,
-        }
+        {"running": not idle, "progress": prog, "radius": 2000, "cage_open": cage_open}
     )
 
 
 @app.route("/api/<instance>/cage/go", methods=["POST"])
 def api_cage_go(instance):
-    global cage_released
     rcon("worldborder set 59999968")
     rcon("gamemode survival @a")
     rcon('title @a title {"text":"GO!","color":"green"}')
     rcon("say §a§lCage released! Welcome to Enigmatica 10!")
-    cage_released = True
     return jsonify({"result": "Cage released"})
 
 
