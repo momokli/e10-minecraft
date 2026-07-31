@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <title>Enigmatica 10</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <style>
+            :root {
+                --bg: #0d1117;
+                --card: #161b22;
+                --border: #30363d;
+                --accent: #58a6ff;
+                --text: #c9d1d9;
+                --dim: #8b949e;
+                --green: #3fb950;
+                --red: #f85149;
+            }
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                background: var(--bg);
+                color: var(--text);
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: 1.5rem 1rem;
+            }
+            .header {
+                display: flex;
+                gap: 1rem;
+                width: 100%;
+                max-width: 900px;
+                align-items: center;
+                margin-bottom: 1rem;
+            }
+            .header-left {
+                flex: 7;
+                min-width: 0;
+            }
+            .header-right {
+                flex: 3;
+                min-width: 200px;
+                background: var(--card);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 0.6rem 0.8rem;
+            }
+            .header-right .wl-title {
+                font-size: 0.7rem;
+                color: var(--dim);
+                margin-bottom: 0.3rem;
+            }
+            .header-right .wl-row {
+                display: flex;
+                gap: 0.3rem;
+                align-items: center;
+            }
+            .header-right input {
+                flex: 1;
+                padding: 0.3rem;
+                background: var(--bg);
+                border: 1px solid var(--border);
+                border-radius: 4px;
+                color: var(--text);
+                font-size: 0.78rem;
+                min-width: 0;
+            }
+            .header-right button {
+                padding: 0.3rem 0.6rem;
+                background: var(--accent);
+                color: #000;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.72rem;
+                font-weight: 600;
+                white-space: nowrap;
+            }
+            .header-right img {
+                width: 28px;
+                height: 28px;
+                display: none;
+                image-rendering: pixelated;
+            }
+            .motd {
+                font-family: monospace;
+                font-size: 0.9rem;
+                color: var(--dim);
+                line-height: 1.4;
+                min-height: 1.5em;
+            }
+            .status {
+                font-size: 0.75rem;
+                color: var(--dim);
+            }
+            .status-dot {
+                display: inline-block;
+                width: 7px;
+                height: 7px;
+                border-radius: 50%;
+                margin-right: 3px;
+            }
+            .status-dot.online {
+                background: var(--green);
+                box-shadow: 0 0 4px var(--green);
+            }
+            .status-dot.offline {
+                background: var(--red);
+            }
+            .time-bar {
+                display: flex;
+                gap: 3px;
+                flex-wrap: wrap;
+                justify-content: center;
+                margin-bottom: 1rem;
+                max-width: 900px;
+                width: 100%;
+            }
+            .time-btn {
+                padding: 2px 6px;
+                border: 1px solid var(--border);
+                border-radius: 3px;
+                background: transparent;
+                color: var(--dim);
+                cursor: pointer;
+                font-size: 0.62rem;
+            }
+            .time-btn.active,
+            .time-btn:hover {
+                background: var(--accent);
+                color: #000;
+                border-color: var(--accent);
+            }
+            .graphs {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 0.75rem;
+                width: 100%;
+                max-width: 900px;
+                margin-bottom: 1rem;
+            }
+            .graphs iframe {
+                width: 100%;
+                height: 200px;
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                background: var(--card);
+            }
+            .footer {
+                padding: 1rem;
+                text-align: center;
+                font-size: 0.72rem;
+                color: var(--dim);
+            }
+            .footer a {
+                color: var(--accent);
+                text-decoration: none;
+                margin: 0 0.4rem;
+            }
+            .footer a:hover {
+                text-decoration: underline;
+            }
+            @media (max-width: 640px) {
+                .header {
+                    flex-direction: column;
+                }
+                .header-right {
+                    max-width: 100%;
+                }
+                .graphs {
+                    grid-template-columns: 1fr;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="header-left">
+                <div class="motd" id="motd"></div>
+                <div class="status">
+                    <span class="status-dot online" id="dot"></span
+                    ><span id="players">0 / 20 players online</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="wl-title">Apply to Whitelist</div>
+                <div class="wl-row">
+                    <input
+                        id="wl-req"
+                        placeholder="Minecraft name"
+                        oninput="lookupHead()"
+                    />
+                    <img id="wl-head" src="" />
+                    <button onclick="submitReq()">Join</button>
+                </div>
+                <div
+                    id="wl-msg"
+                    style="
+                        font-size: 0.65rem;
+                        margin-top: 0.2rem;
+                        min-height: 1em;
+                        color: var(--green);
+                    "
+                ></div>
+            </div>
+        </div>
+        <div class="time-bar">
+            <button class="time-btn active" onclick="setRange('10s')">10s</button>
+            <button class="time-btn" onclick="setRange('30s')">30s</button>
+            <button class="time-btn" onclick="setRange('1m')">1m</button>
+            <button class="time-btn" onclick="setRange('5m')">5m</button>
+            <button class="time-btn" onclick="setRange('15m')">15m</button>
+            <button class="time-btn" onclick="setRange('30m')">30m</button>
+            <button class="time-btn" onclick="setRange('1h')">1h</button>
+            <button class="time-btn" onclick="setRange('6h')">6h</button>
+            <button class="time-btn" onclick="setRange('12h')">12h</button>
+            <button class="time-btn" onclick="setRange('24h')">1d</button>
+            <button class="time-btn" onclick="setRange('48h')">2d</button>
+            <button class="time-btn" onclick="setRange('7d')">1w</button>
+            <button class="time-btn" onclick="setRange('14d')">2w</button>
+            <button class="time-btn" onclick="setRange('60d')">all</button>
+        </div>
+        <div class="graphs">
+            <iframe
+                id="g1"
+                src="https://grafana.e10.projectmellon.de/d-solo/e10-metrics/e10-minecraft-metrics?orgId=1&refresh=10s&panelId=4&theme=dark&kiosk&from=now-10s&to=now"
+                frameborder="0"
+            ></iframe>
+            <iframe
+                id="g2"
+                src="https://grafana.e10.projectmellon.de/d-solo/e10-metrics/e10-minecraft-metrics?orgId=1&refresh=10s&panelId=5&theme=dark&kiosk&from=now-10s&to=now"
+                frameborder="0"
+            ></iframe>
+            <iframe
+                id="g3"
+                src="https://grafana.e10.projectmellon.de/d-solo/e10-metrics/e10-minecraft-metrics?orgId=1&refresh=10s&panelId=9&theme=dark&kiosk&from=now-10s&to=now"
+                frameborder="0"
+            ></iframe>
+            <iframe
+                id="g4"
+                src="https://grafana.e10.projectmellon.de/d-solo/e10-metrics/e10-minecraft-metrics?orgId=1&refresh=10s&panelId=6&theme=dark&kiosk&from=now-10s&to=now"
+                frameborder="0"
+            ></iframe>
+        </div>
+        <div class="footer">
+            <a href="/admin">🔧 Admin</a>
+            <a href="https://grafana.e10.projectmellon.de" target="_blank">📊 Grafana</a>
+        </div>
+        <script>
+            var MC_COLORS = {
+                0: "#000000",
+                1: "#0000AA",
+                2: "#00AA00",
+                3: "#00AAAA",
+                4: "#AA0000",
+                5: "#AA00AA",
+                6: "#FFAA00",
+                7: "#AAAAAA",
+                8: "#555555",
+                9: "#5555FF",
+                a: "#55FF55",
+                b: "#55FFFF",
+                c: "#FF5555",
+                d: "#FF55FF",
+                e: "#FFFF55",
+                f: "#FFFFFF",
+            };
+            function renderMotd(raw, el) {
+                el.innerHTML = "";
+                var cur = { color: null, bold: false };
+                for (var i = 0; i < raw.length; i++) {
+                    if (raw[i] === "\u00a7" && i + 1 < raw.length) {
+                        var c = raw[i + 1];
+                        if (c === "r") cur = { color: null, bold: false };
+                        else if (MC_COLORS[c]) cur.color = MC_COLORS[c];
+                        else if (c === "l") cur.bold = true;
+                        i++;
+                        continue;
+                    }
+                    if (raw[i] === "\\" && raw[i + 1] === "n") {
+                        el.appendChild(document.createElement("br"));
+                        i++;
+                        continue;
+                    }
+                    var s = document.createElement("span");
+                    s.textContent = raw[i];
+                    if (cur.color) s.style.color = cur.color;
+                    if (cur.bold) s.style.fontWeight = "bold";
+                    el.appendChild(s);
+                }
+            }
+            async function load() {
+                try {
+                    var m = await (await fetch("/api/prod/motd")).json();
+                    if (m.raw) {
+                        var r = m.raw;
+                        if (r.startsWith("\\ ")) r = " " + r.substring(2);
+                        renderMotd(r, document.getElementById("motd"));
+                    }
+                    var p = await (await fetch("/api/prod/players")).json();
+                    document.getElementById("players").textContent =
+                        p.length + " / 20 players online";
+                    document.getElementById("dot").className =
+                        "status-dot " + (p.length > 0 ? "online" : "offline");
+                } catch (e) {}
+            }
+            var currentRange = "10s";
+            function setRange(r) {
+                currentRange = r;
+                document.querySelectorAll(".time-btn").forEach(function (b) {
+                    b.classList.toggle(
+                        "active",
+                        b.textContent === r || (r === "60d" && b.textContent === "all"),
+                    );
+                });
+                var from = "now-" + r;
+                ["g1", "g2", "g3", "g4"].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el)
+                        el.src = el.src.replace(
+                            /from=now-[^&]+/,
+                            "from=" + encodeURIComponent(from),
+                        );
+                });
+            }
+            function lookupHead() {
+                var n = document.getElementById("wl-req").value.trim();
+                var h = document.getElementById("wl-head");
+                if (n.length > 1) {
+                    h.src =
+                        "https://mc-heads.net/avatar/" + encodeURIComponent(n) + "/32";
+                    h.style.display = "inline";
+                } else {
+                    h.style.display = "none";
+                }
+            }
+            async function submitReq() {
+                var n = document.getElementById("wl-req").value.trim();
+                if (!n) return;
+                var r = await fetch("/api/prod/whitelist/request", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: n }),
+                });
+                var d = await r.json();
+                document.getElementById("wl-msg").textContent = d.result || d.error;
+                document.getElementById("wl-req").value = "";
+                document.getElementById("wl-head").style.display = "none";
+            }
+            load();
+            setInterval(load, 10000);
+        </script>
+    </body>
+</html>

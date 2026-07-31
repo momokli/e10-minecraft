@@ -1,0 +1,58 @@
+services:
+  mc-prod:
+    image: itzg/minecraft-server:java21
+    container_name: mc-prod
+    pull_policy: always
+    tty: true
+    stdin_open: true
+    ports:
+      - "25585:25565"
+    environment:
+      EULA: "TRUE"
+      TYPE: "AUTO_CURSEFORGE"
+      CF_API_KEY: ${CF_API_KEY}
+      CF_SLUG: "enigmatica10"
+      VERSION: "1.21.1"
+      MEMORY: "12G"
+      USE_AIKAR_FLAGS: "TRUE"
+      ENABLE_RCON: "TRUE"
+      RCON_PASSWORD: ${RCON_PASSWORD}
+      ENABLE_WHITELIST: "TRUE"
+      ENFORCE_WHITELIST: "TRUE"
+      TZ: "Europe/Berlin"
+      SPAWN_PROTECTION: "0"
+      MOTD: "  \u00a7b\u00a7lEnigmatica 10\u00a7r\n  \u00a77e10.projectmellon.de"
+      OVERRIDE_SERVER_PROPERTIES: "TRUE"
+      VIEW_DISTANCE: "8"
+      SIMULATION_DISTANCE: "6"
+      MAX_TICK_TIME: "30000"
+      MODS: |
+        https://cdn.modrinth.com/data/l6YH9tlS/versions/1.10.124-neoforge-1.21.1/spark-1.10.124-neoforge.jar,
+        https://github.com/cpburnz/minecraft-prometheus-exporter/releases/download/1.21.1-neoforge-1.2.1/prometheus-exporter-1.21.1-neoforge-1.2.1.jar
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    logging:
+      driver: journald
+      options:
+        tag: e10-prod
+
+    networks:
+      - e10-net
+
+  rcon-prod:
+    image: itzg/rcon
+    container_name: rcon-prod
+    profiles: ["tools"]
+    environment:
+      RWA_RCON_HOST: mc-prod
+      RWA_RCON_PASSWORD: ${RCON_PASSWORD}
+    depends_on:
+      - mc-prod
+    networks:
+      - e10-net
+
+networks:
+  e10-net:
+    name: e10-net
+    external: true

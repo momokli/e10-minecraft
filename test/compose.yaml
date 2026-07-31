@@ -1,0 +1,52 @@
+services:
+  mc-test:
+    image: itzg/minecraft-server:java21
+    container_name: mc-test
+    pull_policy: always
+    tty: true
+    stdin_open: true
+    ports:
+      - "25580:25565"
+    environment:
+      EULA: "TRUE"
+      TYPE: "AUTO_CURSEFORGE"
+      CF_API_KEY: ${CF_API_KEY}
+      CF_SLUG: "enigmatica10"
+      VERSION: "1.21.1"
+      MEMORY: "6G"
+      USE_AIKAR_FLAGS: "TRUE"
+      ENABLE_RCON: "TRUE"
+      RCON_PASSWORD: ${RCON_PASSWORD}
+      ENABLE_WHITELIST: "TRUE"
+      ENFORCE_WHITELIST: "TRUE"
+      TZ: "Europe/Berlin"
+      SPAWN_PROTECTION: "0"
+      MOTD: "  \u00a7b\u00a7lEnigmatica 10 \u00a77[TEST]\u00a7r\n  \u00a77test.e10.projectmellon.de"
+      OVERRIDE_SERVER_PROPERTIES: "TRUE"
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    logging:
+      driver: journald
+      options:
+        tag: e10-test
+
+    networks:
+      - e10-net
+
+  rcon-test:
+    image: itzg/rcon
+    container_name: rcon-test
+    profiles: ["tools"]
+    environment:
+      RWA_RCON_HOST: mc-test
+      RWA_RCON_PASSWORD: ${RCON_PASSWORD}
+    depends_on:
+      - mc-test
+    networks:
+      - e10-net
+
+networks:
+  e10-net:
+    name: e10-net
+    external: true

@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <title>E10 Dashboard</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"
+        />
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css"
+        />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/yaml/yaml.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/properties/properties.min.js"></script>
+        <style>
+            :root {
+                --bg: #0d1117;
+                --card: #161b22;
+                --border: #30363d;
+                --accent: #58a6ff;
+                --text: #c9d1d9;
+                --dim: #8b949e;
+                --green: #3fb950;
+                --red: #f85149;
+                --yellow: #d2991d;
+            }
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                background: var(--bg);
+                color: var(--text);
+                display: flex;
+                height: 100vh;
+                overflow: hidden;
+            }
+            .sidebar {
+                width: 180px;
+                background: var(--card);
+                border-right: 1px solid var(--border);
+                padding: 1rem;
+                display: flex;
+                flex-direction: column;
+                gap: 0.25rem;
+                overflow-y: auto;
+            }
+            .sidebar h1 {
+                color: var(--accent);
+                font-size: 0.95rem;
+                margin-bottom: 0.5rem;
+            }
+            .sidebar .nav-btn {
+                text-align: left;
+                padding: 0.35rem 0.6rem;
+                border: none;
+                border-radius: 4px;
+                background: transparent;
+                color: var(--dim);
+                cursor: pointer;
+                font-size: 0.8rem;
+            }
+            .sidebar .nav-btn.active,
+            .sidebar .nav-btn:hover {
+                color: var(--text);
+                background: #1c2940;
+            }
+            .main {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            .toolbar {
+                display: flex;
+                gap: 0.25rem;
+                padding: 0.5rem 1rem;
+                border-bottom: 1px solid var(--border);
+                background: var(--card);
+                align-items: center;
+                font-size: 0.8rem;
+            }
+            .toolbar .path {
+                color: var(--dim);
+                flex: 1;
+                font-family: monospace;
+                font-size: 0.75rem;
+            }
+            .toolbar button {
+                padding: 0.25rem 0.5rem;
+                border: 1px solid var(--border);
+                border-radius: 3px;
+                background: transparent;
+                color: var(--text);
+                cursor: pointer;
+                font-size: 0.75rem;
+            }
+            .toolbar button:hover {
+                background: #1c2940;
+            }
+            .toolbar button.accent {
+                background: var(--accent);
+                color: #000;
+                border-color: var(--accent);
+            }
+            .content {
+                flex: 1;
+                overflow-y: auto;
+                padding: 1rem;
+            }
+            .status-row {
+                display: flex;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+                margin-bottom: 1rem;
+                font-size: 0.75rem;
+            }
+            .status-card {
+                background: var(--card);
+                border: 1px solid var(--border);
+                border-radius: 6px;
+                padding: 0.5rem 0.75rem;
+                flex: 1;
+                min-width: 100px;
+            }
+            .status-card .label {
+                color: var(--dim);
+                font-size: 0.65rem;
+                text-transform: uppercase;
+            }
+            .status-card .value {
+                font-size: 0.9rem;
+                font-weight: 600;
+            }
+            .status-card .value.green {
+                color: var(--green);
+            }
+            .status-card .value.yellow {
+                color: var(--yellow);
+            }
+            .status-card .value.red {
+                color: var(--red);
+            }
+            .file-list {
+                font-family: monospace;
+                font-size: 0.78rem;
+            }
+            .file-list .item {
+                display: flex;
+                align-items: center;
+                padding: 0.25rem 0.5rem;
+                border-radius: 3px;
+                cursor: pointer;
+                gap: 0.5rem;
+            }
+            .file-list .item:hover {
+                background: #1c2940;
+            }
+            .file-list .item.dir {
+                color: var(--accent);
+            }
+            .file-list .item .size {
+                color: var(--dim);
+                margin-left: auto;
+                font-size: 0.7rem;
+            }
+            .file-list .item .actions {
+                display: none;
+                gap: 0.25rem;
+            }
+            .file-list .item:hover .actions {
+                display: flex;
+            }
+            .log-view {
+                background: #0d1117;
+                font-family: monospace;
+                font-size: 0.68rem;
+                white-space: pre-wrap;
+                word-break: break-all;
+                padding: 0.5rem;
+                border: 1px solid var(--border);
+                border-radius: 4px;
+                max-height: calc(100vh - 180px);
+                overflow-y: auto;
+                line-height: 1.3;
+            }
+            .whitelist-row {
+                display: flex;
+                gap: 0.25rem;
+                align-items: center;
+                margin-bottom: 0.5rem;
+            }
+            .whitelist-row input {
+                flex: 1;
+                padding: 0.3rem 0.5rem;
+                background: var(--bg);
+                border: 1px solid var(--border);
+                border-radius: 3px;
+                color: var(--text);
+                font-size: 0.8rem;
+            }
+            .motd-raw {
+                width: 100%;
+                padding: 0.5rem;
+                background: #0d1117;
+                border: 1px solid var(--border);
+                border-radius: 4px;
+                color: var(--text);
+                font-family: monospace;
+                font-size: 0.8rem;
+                resize: vertical;
+                min-height: 60px;
+                margin-bottom: 0.5rem;
+            }
+            .motd-preview {
+                padding: 0.6rem 0.8rem;
+                background: #000;
+                border-radius: 4px;
+                font-family: monospace;
+                font-size: 1rem;
+                min-height: 50px;
+                line-height: 1.5;
+                margin-bottom: 0.5rem;
+                white-space: pre-wrap;
+            }
+            .color-bar {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 3px;
+                margin-bottom: 0.75rem;
+            }
+            .color-swatch {
+                width: 22px;
+                height: 22px;
+                border-radius: 3px;
+                cursor: pointer;
+                border: 1px solid transparent;
+                text-align: center;
+                line-height: 20px;
+                font-size: 0.6rem;
+                font-weight: bold;
+                color: #fff;
+                text-shadow: 0 0 2px #000;
+            }
+            .color-swatch:hover {
+                border-color: #fff;
+                transform: scale(1.15);
+            }
+            .color-swatch.fmt {
+                background: #333;
+                font-size: 0.7rem;
+                width: auto;
+                padding: 0 4px;
+            }
+            input:focus,
+            textarea:focus,
+            select:focus {
+                outline: 1px solid var(--accent);
+            }
+            .toast {
+                position: fixed;
+                bottom: 1rem;
+                right: 1rem;
+                background: #30363d;
+                padding: 0.5rem 1rem;
+                border-radius: 6px;
+                font-size: 0.75rem;
+                z-index: 99;
+                display: none;
+            }
+            .btn-sm {
+                padding: 0.15rem 0.4rem;
+                font-size: 0.7rem;
+                border: 1px solid var(--border);
+                border-radius: 3px;
+                background: transparent;
+                color: var(--text);
+                cursor: pointer;
+            }
+            .btn-sm:hover {
+                background: #1c2940;
+            }
+            .btn-sm.danger {
+                color: var(--red);
+            }
+            .btn-sm.warn {
+                color: var(--yellow);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="sidebar">
+            <h1>⚡ E10 PROD</h1>
+            <button class="nav-btn active" onclick="nav('status')">📊 Status</button>
+            <button class="nav-btn" onclick="nav('whitelist')">📋 Whitelist</button>
+            <button class="nav-btn" onclick="nav('requests')">📬 Requests</button>
+            <button class="nav-btn" onclick="nav('motd')">📢 MOTD</button>
+            <button class="nav-btn" onclick="nav('files')">📁 Files</button>
+            <button class="nav-btn" onclick="nav('logs')">📜 Logs</button>
+            <button class="nav-btn" onclick="nav('backups')">💾 Backups</button>
+        </div>
+        <div class="main">
+            <div class="toolbar" id="toolbar"></div>
+            <div class="content" id="content"></div>
+        </div>
+        <div class="toast" id="toast"></div>
+        <script>
+            var inst = "prod",
+                page = "status",
+                fpath = "";
+
+            function nav(p) {
+                page = p;
+                document
+                    .querySelectorAll(".nav-btn")
+                    .forEach((b) =>
+                        b.classList.toggle(
+                            "active",
+                            b.textContent.trim().toLowerCase().indexOf(p) >= 0,
+                        ),
+                    );
+                render();
+            }
+            function toast(m) {
+                var t = document.getElementById("toast");
+                t.textContent = m;
+                t.style.display = "block";
+                setTimeout(function () {
+                    t.style.display = "none";
+                }, 2000);
+            }
+
+            async function api(p) {
+                var r = await fetch("/api/" + inst + p);
+                return r.ok ? r.json() : [];
+            }
+
+            function renderMotd(raw, targetId) {
+                // Strip leading backslash escape used in server.properties
+                if (raw && raw.startsWith("\\ ")) raw = " " + raw.substring(2);
+                var el = document.getElementById(targetId);
+                if (!el) return;
+                el.innerHTML = "";
+                var cur = {
+                    color: null,
+                    bold: false,
+                    italic: false,
+                    underline: false,
+                    strike: false,
+                };
+                for (var i = 0; i < raw.length; i++) {
+                    if (raw[i] === "\u00a7" && i + 1 < raw.length) {
+                        var code = raw[i + 1];
+                        if (code === "r") {
+                            cur = {
+                                color: null,
+                                bold: false,
+                                italic: false,
+                                underline: false,
+                                strike: false,
+                            };
+                        } else if (MC_COLORS[code]) {
+                            cur.color = MC_COLORS[code];
+                        } else if (code === "l") cur.bold = true;
+                        else if (code === "o") cur.italic = true;
+                        else if (code === "n") cur.underline = true;
+                        else if (code === "m") cur.strike = true;
+                        i++;
+                        continue;
+                    }
+                    if (raw[i] === "\\" && raw[i + 1] === "n") {
+                        el.appendChild(document.createElement("br"));
+                        i++;
+                        continue;
+                    }
+                    var span = document.createElement("span");
+                    span.textContent = raw[i];
+                    if (cur.color) span.style.color = cur.color;
+                    if (cur.bold) span.style.fontWeight = "bold";
+                    if (cur.italic) span.style.fontStyle = "italic";
+                    if (cur.underline) span.style.textDecoration = "underline";
+                    if (cur.strike)
+                        span.style.textDecoration =
+                            (span.style.textDecoration || "") + " line-through";
+                    el.appendChild(span);
+                }
+            }
+
+            var MC_COLORS = {
+                0: "#000000",
+                1: "#0000AA",
+                2: "#00AA00",
+                3: "#00AAAA",
+                4: "#AA0000",
+                5: "#AA00AA",
+                6: "#FFAA00",
+                7: "#AAAAAA",
+                8: "#555555",
+                9: "#5555FF",
+                a: "#55FF55",
+                b: "#55FFFF",
+                c: "#FF5555",
+                d: "#FF55FF",
+                e: "#FFFF55",
+                f: "#FFFFFF",
+            };
+
+            async function render() {
+                var c = document.getElementById("content"),
+                    t = document.getElementById("toolbar");
+
+                if (page === "status") {
+                    t.innerHTML =
+                        '<span class="path">Status</span><button class="accent" onclick="cmd(&#39;save-all&#39;)">💾 Save All</button><button onclick="cmd(&#39;say Hello&#39;)">💬 Say</button><button style="background:#3fb950;color:#000;border-color:#3fb950" onclick="if(confirm(&#39;Release cage?&#39;))goGoGo()">🚀 GO!</button><button class="btn-sm danger" onclick="if(confirm(&#39;Stop server?&#39;))cmd(&#39;stop&#39;)">⏹ Stop</button>';
+                    var p = await api("/players"),
+                        w = await api("/whitelist"),
+                        m = await api("/motd"),
+                        pg = await api("/pregen");
+                    var tps = "--",
+                        mspt = "";
+                    try {
+                        var td = await api("/tps");
+                        tps = td.tps || "--";
+                        mspt = td.mspt || "";
+                    } catch (e) {}
+                    c.innerHTML =
+                        '<div class="status-row">' +
+                        '<div class="status-card"><div class="label">Players</div><div class="value green">' +
+                        p.length +
+                        " / 20</div></div>" +
+                        '<div class="status-card"><div class="label">TPS ' +
+                        (mspt ? "(" + mspt + ")" : "") +
+                        '</div><div class="value ' +
+                        (tps > 18 ? "green" : tps > 14 ? "yellow" : "red") +
+                        '">' +
+                        tps +
+                        "</div></div>" +
+                        '<div class="status-card"><div class="label">Whitelist</div><div class="value">' +
+                        w.length +
+                        "</div></div>" +
+                        '<div class="status-card"><div class="label">Pre-Gen ' +
+                        (pg.running ? "▶" : "⏸") +
+                        '</div><div class="value" style="font-size:.7rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' +
+                        (pg.progress || "") +
+                        '">' +
+                        (pg.progress || "idle") +
+                        "</div></div>" +
+                        '</div><div class="status-card" style="margin-bottom:.5rem"><div class="label">MOTD</div><div class="motd-preview" id="status-motd">' +
+                        (m.raw || "(none)") +
+                        "</div></div>" +
+                        '<div class="file-list">' +
+                        (p.length
+                            ? p
+                                  .map(function (x) {
+                                      return '<div class="item">🟢 ' + x + "</div>";
+                                  })
+                                  .join("")
+                            : '<div class="item" style="color:var(--dim)">No players online</div>') +
+                        "</div>";
+                    setTimeout(function () {
+                        renderMotd(m.raw || "", "status-motd");
+                    }, 50);
+                } else if (page === "whitelist") {
+                    t.innerHTML = '<span class="path">Whitelist</span>';
+                    var w = await api("/whitelist");
+                    c.innerHTML =
+                        '<div class="whitelist-row"><input id="wl-name" placeholder="Player name"><button class="accent" onclick="wlAdd()">Add</button></div>' +
+                        '<div class="file-list">' +
+                        (w.length
+                            ? w
+                                  .map(function (x) {
+                                      return (
+                                          '<div class="item">' +
+                                          x +
+                                          '<span class="actions"><button class="btn-sm danger" onclick="wlRemove(`' +
+                                          x +
+                                          '`)">Remove</button></span></div>'
+                                      );
+                                  })
+                                  .join("")
+                            : '<div class="item" style="color:var(--dim)">Empty</div>') +
+                        "</div>";
+                } else if (page === "requests") {
+                    t.innerHTML = '<span class="path">Whitelist Requests</span>';
+                    var reqs = [];
+                    try {
+                        reqs = await (
+                            await fetch("/api/" + inst + "/whitelist/requests")
+                        ).json();
+                    } catch (e) {}
+                    c.innerHTML =
+                        '<div class="file-list">' +
+                        (reqs.length
+                            ? reqs
+                                  .map(function (r) {
+                                      return (
+                                          '<div class="item">🕐 ' +
+                                          r.name +
+                                          ' <span style="color:var(--dim);font-size:.7rem">' +
+                                          (r.time || "").substring(0, 16) +
+                                          "</span>" +
+                                          '<span class="actions">' +
+                                          '<button class="btn-sm" style="color:var(--green)" onclick="approveReq(\'' +
+                                          r.name +
+                                          "')\">✅</button>" +
+                                          '<button class="btn-sm danger" onclick="rejectReq(\'' +
+                                          r.name +
+                                          "')\">✕</button>" +
+                                          "</span></div>"
+                                      );
+                                  })
+                                  .join("")
+                            : '<div class="item" style="color:var(--dim)">No pending requests</div>') +
+                        "</div>";
+                } else if (page === "motd") {
+                    t.innerHTML =
+                        '<span class="path">MOTD</span><button class="accent" onclick="saveMotd()">Save</button>';
+                    var m = await api("/motd");
+                    c.innerHTML =
+                        '<div class="color-bar">' +
+                        Object.keys(MC_COLORS)
+                            .map(function (k) {
+                                return (
+                                    '<span class="color-swatch" style="background:' +
+                                    MC_COLORS[k] +
+                                    '" title="&' +
+                                    k +
+                                    '" onclick="insertMotdCode(`&' +
+                                    k +
+                                    '`)">' +
+                                    k +
+                                    "</span>"
+                                );
+                            })
+                            .join("") +
+                        '<span class="color-swatch fmt" onclick="insertMotdCode(`&l`)">B</span>' +
+                        '<span class="color-swatch fmt" onclick="insertMotdCode(`&o`)"><i>I</i></span>' +
+                        '<span class="color-swatch fmt" onclick="insertMotdCode(`&n`)"><u>U</u></span>' +
+                        '<span class="color-swatch fmt" onclick="insertMotdCode(`&r`)">↺</span>' +
+                        '<span class="color-swatch fmt" onclick="insertMotdCode(`\n`)">⏎</span>' +
+                        "</div>" +
+                        '<textarea id="motd-raw" class="motd-raw" oninput="renderMotd(this.value,`motd-preview`)">' +
+                        (m.raw || "") +
+                        "</textarea>" +
+                        '<div class="motd-preview" id="motd-preview"></div>';
+                    setTimeout(function () {
+                        var r = document.getElementById("motd-raw");
+                        renderMotd(r.value, "motd-preview");
+                    }, 50);
+                } else if (page === "files") {
+                    t.innerHTML =
+                        '<span class="path">📁 /' +
+                        (fpath || "root") +
+                        "</span>" +
+                        (fpath
+                            ? '<button onclick="fpath=`' +
+                              fpath.split("/").slice(0, -1).join("/") +
+                              '`;render()">⬆ Up</button>'
+                            : "") +
+                        '<button onclick="showUpload()">📤 Upload</button><button onclick="mkdir()">📁 New Dir</button><input type="file" id="file-upload" style="display:none" onchange="doUpload(this)">';
+                    var files = [];
+                    try {
+                        files = await api("/files?path=" + encodeURIComponent(fpath));
+                    } catch (e) {}
+                    var html = '<div class="file-list">';
+                    if (fpath)
+                        html +=
+                            '<div class="item dir" onclick="fpath=`' +
+                            fpath.split("/").slice(0, -1).join("/") +
+                            '`;render()">📁 ../</div>';
+                    files.forEach(function (f) {
+                        html +=
+                            '<div class="item' +
+                            (f.dir ? " dir" : "") +
+                            '" onclick="' +
+                            (f.dir
+                                ? "fpath=`" + f.path + "`;render()"
+                                : "editFile(`" + f.path + "`)") +
+                            '">';
+                        html +=
+                            (f.dir ? "📁" : "📄") +
+                            " " +
+                            f.name +
+                            '<span class="size">' +
+                            (f.size || "") +
+                            "</span>";
+                        html +=
+                            '<span class="actions"><button class="btn-sm danger" onclick="event.stopPropagation();delFile(`' +
+                            f.path +
+                            '`)">🗑</button><button class="btn-sm" onclick="event.stopPropagation();var n=prompt(`Rename:`);if(n)renFile(`' +
+                            f.path +
+                            '`,n)">✏</button></span></div>';
+                    });
+                    html += "</div>";
+                    c.innerHTML = html;
+                } else if (page === "logs") {
+                    t.innerHTML =
+                        '<span class="path">Server Log</span><button onclick="loadLogs()">🔄</button>';
+                    c.innerHTML = '<pre class="log-view" id="log-view">Loading...</pre>';
+                    loadLogs();
+                } else if (page === "backups") {
+                    t.innerHTML =
+                        '<span class="path">Backups</span><button class="accent" onclick="doBackup()">🔄 Create Backup</button>';
+                    var snaps = [];
+                    try {
+                        snaps = await api("/backups");
+                    } catch (e) {}
+                    c.innerHTML =
+                        '<div class="file-list">' +
+                        (snaps.length
+                            ? snaps
+                                  .map(function (s) {
+                                      return (
+                                          '<div class="item">' +
+                                          s.name +
+                                          '<span class="size">' +
+                                          s.date +
+                                          '</span><span class="actions"><button class="btn-sm warn" onclick="if(confirm(`Restore ' +
+                                          s.name +
+                                          "? This stops the server!`))restoreSnap(`" +
+                                          s.name +
+                                          '`)">Restore</button></span></div>'
+                                      );
+                                  })
+                                  .join("")
+                            : '<div class="item" style="color:var(--dim)">No snapshots</div>') +
+                        "</div>";
+                }
+            }
+
+            function insertMotdCode(code) {
+                var t = document.getElementById("motd-raw");
+                if (!t) return;
+                var s = t.selectionStart;
+                t.value =
+                    t.value.substring(0, s) + code + t.value.substring(t.selectionEnd);
+                t.selectionStart = t.selectionEnd = s + code.length;
+                t.focus();
+                renderMotd(t.value, "motd-preview");
+            }
+
+            async function cmd(c) {
+                await fetch("/api/" + inst + "/cmd", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ cmd: c }),
+                });
+                toast(c);
+                setTimeout(render, 1500);
+            }
+            async function wlAdd() {
+                var n = document.getElementById("wl-name").value.trim();
+                if (!n) return;
+                await fetch("/api/" + inst + "/whitelist/add", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: n }),
+                });
+                render();
+                toast("Added " + n);
+            }
+            async function wlRemove(n) {
+                await fetch("/api/" + inst + "/whitelist/remove", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: n }),
+                });
+                render();
+            }
+            async function approveReq(n) {
+                await fetch("/api/" + inst + "/whitelist/requests/approve", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: n }),
+                });
+                page = "requests";
+                render();
+                toast("Approved " + n);
+            }
+            async function rejectReq(n) {
+                await fetch("/api/" + inst + "/whitelist/requests/reject", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: n }),
+                });
+                page = "requests";
+                render();
+            }
+            async function saveMotd() {
+                var r = document.getElementById("motd-raw").value;
+                await fetch("/api/" + inst + "/motd", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ raw: r }),
+                });
+                render();
+                toast("MOTD saved");
+            }
+
+            async function editFile(p) {
+                var r = await fetch(
+                    "/api/" + inst + "/files/read?path=" + encodeURIComponent(p),
+                );
+                var d = await r.json();
+                var t = document.getElementById("toolbar");
+                t.innerHTML =
+                    '<span class="path">✏ ' +
+                    p +
+                    '</span><button class="accent" onclick="saveFile(`' +
+                    p +
+                    '`)">Save</button><button onclick="page=`files`;fpath=`' +
+                    p.split("/").slice(0, -1).join("/") +
+                    '`;render()">Cancel</button>';
+                var ext = p.split(".").pop();
+                var mode = "yaml";
+                if (ext === "json" || ext === "json5") mode = "javascript";
+                else if (ext === "properties" || ext === "cfg" || ext === "toml")
+                    mode = "properties";
+                else if (ext === "js") mode = "javascript";
+                var c = document.getElementById("content");
+                c.innerHTML =
+                    '<textarea id="editor-text" style="display:none">' +
+                    d.content
+                        .replace(/&/g, "&amp;")
+                        .replace(/</g, "&lt;")
+                        .replace(/>/g, "&gt;") +
+                    "</textarea>";
+                window._cm = CodeMirror.fromTextArea(
+                    document.getElementById("editor-text"),
+                    {
+                        lineNumbers: true,
+                        mode: mode,
+                        theme: "dracula",
+                        viewportMargin: Infinity,
+                    },
+                );
+                window._cm.setSize("100%", "calc(100vh - 100px)");
+            }
+            async function saveFile(p) {
+                var txt = window._cm
+                    ? window._cm.getValue()
+                    : document.getElementById("editor-text").value;
+                await fetch("/api/" + inst + "/files/write", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ path: p, content: txt }),
+                });
+                page = "files";
+                fpath = p.split("/").slice(0, -1).join("/");
+                render();
+                toast("Saved " + p);
+            }
+            async function delFile(p) {
+                if (!confirm("Delete " + p + "?")) return;
+                await fetch("/api/" + inst + "/files/delete", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ path: p }),
+                });
+                render();
+            }
+            async function renFile(p, n) {
+                await fetch("/api/" + inst + "/files/rename", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ path: p, new_name: n }),
+                });
+                render();
+            }
+            function showUpload() {
+                document.getElementById("file-upload").click();
+            }
+            async function doUpload(inp) {
+                var f = inp.files[0];
+                if (!f) return;
+                var fd = new FormData();
+                fd.append("file", f);
+                fd.append("path", fpath);
+                await fetch("/api/" + inst + "/files/upload", {
+                    method: "POST",
+                    body: fd,
+                });
+                render();
+                toast("Uploaded");
+            }
+            async function mkdir() {
+                var n = prompt("Directory name:");
+                if (!n) return;
+                await fetch("/api/" + inst + "/files/mkdir", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ path: fpath + "/" + n }),
+                });
+                render();
+            }
+            async function loadLogs() {
+                try {
+                    var r = await fetch("/api/" + inst + "/logs?tail=40");
+                    var lines = await r.json();
+                    var lv = document.getElementById("log-view");
+                    if (lv) {
+                        lv.textContent = lines.join("\n");
+                        lv.scrollTop = lv.scrollHeight;
+                    }
+                } catch (e) {}
+            }
+            async function doBackup() {
+                var r = await fetch("/api/" + inst + "/backup", { method: "POST" });
+                var d = await r.json();
+                toast(d.result || "Backup done");
+                render();
+            }
+            async function restoreSnap(s) {
+                await fetch("/api/" + inst + "/restore", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ snapshot: s }),
+                });
+                toast("Restored");
+            }
+            async function goGoGo() {
+                await fetch("/api/" + inst + "/cage/go", { method: "POST" });
+                toast("GO! Cage released");
+                setTimeout(render, 2000);
+            }
+
+            setInterval(function () {
+                if (page === "logs") loadLogs();
+                else render();
+            }, 8000);
+            render();
+        </script>
+    </body>
+</html>

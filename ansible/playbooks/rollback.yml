@@ -1,0 +1,45 @@
+---
+- name: Rollback E10 instance to previous state
+  hosts: projectmellon.de
+  vars_prompt:
+    - name: instance
+      prompt: "Instance to rollback (prod/test)"
+      private: false
+      default: prod
+  tasks:
+    - name: List last 5 Borg archives
+      ansible.builtin.command:
+        cmd: borg list --last 5 /srv/e10/{{ instance }}/backups
+      register: archives
+
+    - name: Show available archives
+      ansible.builtin.debug:
+        var: archives.stdout_lines
+
+    - name: Get latest archive name
+      ansible.builtin.command:
+        cmd: >
+          borg list --last 1 --format '{archive}' /srv/e10/{{ instance }}/backups
+      register: latest_archive
+
+    - name: Stop MC instance
+      ansible.builtin.command:
+        cmd: docker compose down
+        chdir: /srv/e10/{{ instance }}
+      changed_when: true
+
+    - name: Extract latest backup
+      ansible.builtin.command:
+        cmd: >
+          borg extract /srv/e10/{{ instance }}/backups::{{ latest_archive.stdout | trim }}
+        chdir: /srv/e10/{{ instance }}/data
+
+    - name: Start MC instance
+      ansible.builtin.command:
+        cmd: docker compose up -d
+        chdir: /srv/e10/{{ instance }}
+      changed_when: true
+
+    - name: Done
+      ansible.builtin.debug:
+        msg: "Rolled back {{ instance }} to {{ latest_archive.stdout | trim }}"

@@ -1,0 +1,82 @@
+services:
+  # ═══════════════════════════════════════
+  # Prometheus — Metrics Collector
+  # ═══════════════════════════════════════
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: e10-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    logging:
+      driver: journald
+      options:
+        tag: e10-shared
+    networks:
+      - e10-net
+
+  # ═══════════════════════════════════════
+  # Grafana — Visualization
+  # ═══════════════════════════════════════
+  grafana:
+    image: grafana/grafana:latest
+    container_name: e10-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_NAME: "Main Org."
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+    logging:
+      driver: journald
+      options:
+        tag: e10-shared
+    networks:
+      - e10-net
+
+  # ═══════════════════════════════════════
+  # Flask Web-UI — Manages both instances
+  # ═══════════════════════════════════════
+  flask:
+    build: ./webui
+    container_name: e10-webui
+    restart: unless-stopped
+    ports:
+      - "5002:5000"
+    environment:
+      RCON_HOST_PROD: mc-prod
+      RCON_HOST_TEST: mc-test
+      RCON_PORT: "25575"
+      RCON_PASSWORD: ${RCON_PASSWORD}
+      AUTH_USER: ${AUTH_USER:-admin}
+      AUTH_PASS: ${AUTH_PASS:-change-me}
+    volumes:
+      - /srv/e10/prod/data:/prod-data
+      - /srv/e10/test/data:/test-data
+      - /srv/e10/prod/backups:/prod-backups
+      - /srv/e10/test/backups:/test-backups
+      - /var/run/docker.sock:/var/run/docker.sock
+    logging:
+      driver: journald
+      options:
+        tag: e10-shared
+    depends_on:
+      - prometheus
+    networks:
+      - e10-net
+
+volumes:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  e10-net:
+    name: e10-net
+    external: true

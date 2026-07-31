@@ -1,0 +1,10 @@
+.env
+prod/data/
+test/data/
+shared/prometheus-data/
+shared/grafana-data/
+shared/caddy-data/
+*.tar.gz
+*.tar
+__pycache__/
+*.pyc

@@ -1,0 +1,7 @@
+e10.projectmellon.de {
+    reverse_proxy flask:5000
+}
+
+grafana.e10.projectmellon.de {
+    reverse_proxy grafana:3000
+}

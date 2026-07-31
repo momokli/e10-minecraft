@@ -1,0 +1,26 @@
+---
+- name: Pause old Minecraft servers to free RAM
+  hosts: projectmellon.de
+  tasks:
+    - name: Stop mc-homestead
+      ansible.builtin.command:
+        cmd: docker compose down
+        chdir: /srv/mc-homestead
+      ignore_errors: true
+      changed_when: true
+
+    - name: Stop mc-homestead2
+      ansible.builtin.command:
+        cmd: docker compose down
+        chdir: /srv/mc-homestead2
+      ignore_errors: true
+      changed_when: true
+
+    - name: Show freed RAM
+      ansible.builtin.shell:
+        cmd: free -h | head -2
+      register: mem
+
+    - name: Memory status
+      ansible.builtin.debug:
+        var: mem.stdout_lines

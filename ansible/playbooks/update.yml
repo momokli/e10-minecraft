@@ -1,0 +1,30 @@
+---
+- name: Update E10 mods/config
+  hosts: projectmellon.de
+  vars_prompt:
+    - name: instance
+      prompt: "Instance to update (prod/test)"
+      private: false
+      default: prod
+  tasks:
+    - name: Stop MC instance
+      ansible.builtin.command:
+        cmd: docker compose down
+        chdir: /srv/e10/{{ instance }}
+      changed_when: true
+
+    - name: Pull latest image
+      ansible.builtin.command:
+        cmd: docker pull itzg/minecraft-server:java21
+      register: pull_result
+      changed_when: "'Downloaded newer image' in pull_result.stdout"
+
+    - name: Start MC instance (will re-download modpack)
+      ansible.builtin.command:
+        cmd: docker compose up -d
+        chdir: /srv/e10/{{ instance }}
+      changed_when: true
+
+    - name: Done
+      ansible.builtin.debug:
+        msg: "Updated {{ instance }} instance and restarted."

@@ -1,0 +1,38 @@
+---
+- name: Backup E10 worlds via Borg
+  hosts: projectmellon.de
+  vars:
+    now: "{{ ansible_date_time.iso8601_basic_short }}"
+  tasks:
+    - name: Backup PROD world
+      ansible.builtin.command:
+        cmd: >
+          borg create --stats --compression lz4
+          /srv/e10/prod/backups::prod-{{ now }}
+          world
+        chdir: /srv/e10/prod/data
+      register: borg_prod
+      changed_when: true
+
+    - name: Backup TEST world
+      ansible.builtin.command:
+        cmd: >
+          borg create --stats --compression lz4
+          /srv/e10/test/backups::test-{{ now }}
+          world
+        chdir: /srv/e10/test/data
+      register: borg_test
+      changed_when: true
+
+    - name: Prune old backups (keep hourly:48, daily:30, weekly:12)
+      ansible.builtin.command:
+        cmd: >
+          borg prune --keep-hourly 48 --keep-daily 30 --keep-weekly 12
+          /srv/e10/{{ item }}/backups
+      loop: [prod, test]
+      changed_when: true
+
+    - name: Show PROD result
+      ansible.builtin.debug:
+        var: borg_prod.stdout_lines
+      when: borg_prod.stdout_lines is defined

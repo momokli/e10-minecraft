@@ -1,0 +1,61 @@
+---
+- name: Restore E10 world from Borg backup
+  hosts: projectmellon.de
+  vars_prompt:
+    - name: instance
+      prompt: "Instance to restore (prod/test)"
+      private: false
+      default: prod
+    - name: archive
+      prompt: "Borg archive name (leave empty to list)"
+      private: false
+      default: ""
+  tasks:
+    - name: List available archives
+      when: archive == ""
+      ansible.builtin.command:
+        cmd: borg list /srv/e10/{{ instance }}/backups
+      register: archive_list
+
+    - name: Show archives
+      when: archive == ""
+      ansible.builtin.debug:
+        var: archive_list.stdout_lines
+
+    - name: Fail if no archive selected
+      when: archive == ""
+      ansible.builtin.fail:
+        msg: "Re-run with archive name from list above"
+
+    - name: Verify archive exists
+      when: archive != ""
+      ansible.builtin.command:
+        cmd: borg info /srv/e10/{{ instance }}/backups::{{ archive }}
+      register: archive_check
+      failed_when: archive_check.rc != 0
+
+    - name: Stop MC instance
+      when: archive != ""
+      ansible.builtin.command:
+        cmd: docker compose down
+        chdir: /srv/e10/{{ instance }}
+      changed_when: true
+
+    - name: Restore world from Borg
+      when: archive != ""
+      ansible.builtin.command:
+        cmd: >
+          borg extract
+          /srv/e10/{{ instance }}/backups::{{ archive }}
+        chdir: /srv/e10/{{ instance }}/data
+
+    - name: Start MC instance
+      when: archive != ""
+      ansible.builtin.command:
+        cmd: docker compose up -d
+        chdir: /srv/e10/{{ instance }}
+      changed_when: true
+
+    - name: Done
+      ansible.builtin.debug:
+        msg: "Restored {{ instance }} from {{ archive }} and started."

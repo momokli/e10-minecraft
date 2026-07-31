@@ -1,0 +1,145 @@
+---
+- name: Deploy E10 to projectmellon.de
+  hosts: projectmellon.de
+  vars:
+    cloudflare_zone_id: "70505a13081de0743e8e7fbae48d6611"
+  tasks:
+    - name: Ensure base directories exist
+      ansible.builtin.file:
+        path: "/srv/e10/{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - test/data
+        - test/backups
+        - prod/data
+        - prod/backups
+        - shared
+
+    - name: Create e10-net docker network
+      ansible.builtin.command:
+        cmd: docker network create e10-net
+      register: net_result
+      failed_when: net_result.rc != 0 and 'already exists' not in net_result.stderr
+      changed_when: net_result.rc == 0
+
+    - name: Sync shared files
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../shared/"
+        dest: /srv/e10/shared/
+        mode: "0644"
+
+    - name: Copy test compose
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../test/compose.yaml"
+        dest: /srv/e10/test/compose.yaml
+        mode: "0644"
+
+    - name: Copy prod compose
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../prod/compose.yaml"
+        dest: /srv/e10/prod/compose.yaml
+        mode: "0644"
+
+    - name: Ensure .env files exist
+      ansible.builtin.copy:
+        content: |
+          CF_API_KEY={{ lookup('env', 'CF_API_KEY') | replace('$', '$$') }}
+          RCON_PASSWORD={{ lookup('env', 'RCON_PASSWORD') }}
+          GRAFANA_PASSWORD={{ lookup('env', 'GRAFANA_PASSWORD') }}
+        dest: "/srv/e10/{{ item }}/.env"
+        mode: "0600"
+      loop:
+        - test
+        - prod
+        - shared
+
+    - name: Build shared services (Prometheus, Grafana, Web-UI)
+      ansible.builtin.command:
+        cmd: docker compose up -d --build
+        chdir: /srv/e10/shared
+      changed_when: true
+
+    - name: Start MC test instance
+      ansible.builtin.command:
+        cmd: docker compose up -d
+        chdir: /srv/e10/test
+      changed_when: true
+
+    - name: Start MC prod instance
+      ansible.builtin.command:
+        cmd: docker compose up -d
+        chdir: /srv/e10/prod
+      changed_when: true
+
+    - name: Update host Caddyfile
+      ansible.builtin.blockinfile:
+        path: /home/momo/Caddyfile
+        marker: "# {mark} E10 ANSIBLE MANAGED"
+        block: |
+          e10.projectmellon.de {
+              reverse_proxy 127.0.0.1:5002
+          }
+          grafana.e10.projectmellon.de {
+              reverse_proxy 127.0.0.1:3001
+          }
+      register: caddyfile_changed
+
+    - name: Reload Caddy
+      ansible.builtin.systemd:
+        name: caddy-planet.service
+        state: restarted
+      become: true
+      when: caddyfile_changed.changed
+
+    - name: Set up Cloudflare DNS SRV records
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'CLOUDFLARE_API_TOKEN') }}"
+          Content-Type: application/json
+        body:
+          type: SRV
+          name: "_minecraft._tcp.{{ item.name }}"
+          data:
+            priority: 0
+            weight: 5
+            port: "{{ item.port }}"
+            target: projectmellon.de
+          ttl: 3600
+        body_format: json
+        status_code: [200, 201]
+      register: dns_srv
+      failed_when: false
+      loop:
+        - { name: "e10", port: "25585" }
+        - { name: "test.e10", port: "25580" }
+
+    - name: Warn if SRV records already exist
+      ansible.builtin.debug:
+        msg: "SRV record {{ item.item.name }} already exists (409). Verify port is correct."
+      loop: "{{ dns_srv.results }}"
+      when: item.status == 409
+
+    - name: Set up Cloudflare DNS CNAME for Grafana
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ lookup('env', 'CLOUDFLARE_API_TOKEN') }}"
+          Content-Type: application/json
+        body:
+          type: CNAME
+          name: grafana.e10
+          content: projectmellon.de
+          ttl: 3600
+        body_format: json
+        status_code: [200, 201]
+      register: dns_cname
+      failed_when: false
+
+    - name: Warn if Grafana CNAME already exists
+      ansible.builtin.debug:
+        msg: "Grafana CNAME already exists (409)."
+      when: dns_cname.status == 409
