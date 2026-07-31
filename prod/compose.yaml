@@ -26,9 +26,6 @@ services:
       VIEW_DISTANCE: "8"
       SIMULATION_DISTANCE: "6"
       MAX_TICK_TIME: "30000"
-      MODS: |
-        https://cdn.modrinth.com/data/l6YH9tlS/versions/1.10.124-neoforge-1.21.1/spark-1.10.124-neoforge.jar,
-        https://github.com/cpburnz/minecraft-prometheus-exporter/releases/download/1.21.1-neoforge-1.2.1/prometheus-exporter-1.21.1-neoforge-1.2.1.jar
     volumes:
       - ./data:/data
     restart: unless-stopped
