@@ -5,16 +5,16 @@ Hosted on projectmellon.de, 12 GB RAM, 5–8 concurrent players.
 
 Built on [itzg/minecraft-server](https://github.com/itzg/docker-minecraft-server) Docker image.
 
-![E10 Landing Page — live TPS, MSPT, Player Count & RAM graphs](screenshots/demo_landing_graphs.png)
+![E10 Landing Page — live TPS, MSPT, Tick Headroom & Players graphs](screenshots/demo_landing_graphs.png)
 
 ## Landing Page — https://e10.projectmellon.de
 
 Public page, no login needed. Shows server status and four live graphs:
 
 1. **TPS** — Ticks per second. 20 = perfect. Lower = lag.
-2. **MSPT** — Milliseconds per tick. Budget is 50ms. Spikes mean something is expensive.
-3. **Players** — Concurrent players over time.
-4. **RAM** — Memory usage (heap + allocation). Catch leaks before crashes.
+2. **MSPT** — Milliseconds per tick, with 50ms budget line. Spikes mean something is expensive.
+3. **Tick Headroom %** — How much of the 50ms tick budget is still free. Drops before TPS does.
+4. **Players** — Concurrent players over time.
 
 Each graph has a time range selector: 10s · 30s · 1m · 5m · 15m · 30m · 1h · 6h · 12h · 1d · 2d · 1w · 2w · all.
 
@@ -29,7 +29,7 @@ The page also shows the server MOTD, current player count, and a whitelist reque
 | Admin dashboard (whitelist, RCON, MOTD editor, file browser, logs) | ✅         |
 | Waiting Cage (20×20 adventure mode, released via "Go!" button)     | ✅         |
 | Borg backups every 30 min (48h hourly + 30 daily + 12 weekly)      | ✅         |
-| Grafana dashboards (TPS, MSPT, players, RAM)                       | ✅         |
+| Grafana dashboards (TPS, MSPT, headroom, players)                  | ✅         |
 | Ansible deploy, backup, restore, rollback                          | ✅         |
 | E2E test suite                                                     | ✅         |
 | Test instance (port 25580, 6 GB)                                   | ✅         |
