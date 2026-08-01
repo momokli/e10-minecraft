@@ -8,4 +8,5 @@ shared/caddy-data/
 *.tar
 __pycache__/
 *.pyc
-screenshots/
+screenshots/*
+!screenshots/demo_landing_graphs.png
