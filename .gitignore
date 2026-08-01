@@ -8,3 +8,4 @@ shared/caddy-data/
 *.tar
 __pycache__/
 *.pyc
+screenshots/
